@@ -1,0 +1,21 @@
+CAUSE : la date de transaction est invalide.
+
+2026-11-10 14:57:25,303 INFO 3 fichier(s) détecté(s) dans s3://transactions
+Traceback (most recent call last):
+  File "<project>/src/loader.py", line 18, in parse_rows
+    datetime.fromisoformat(row["datetime_transaction"])
+ValueError: Invalid isoformat string: 'date-invalide'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "<project>/src/pipeline.py", line 46, in <module>
+    run()
+  File "<project>/src/pipeline.py", line 36, in run
+    rows = add_large_amount_flag(parse_rows(content.decode("utf-8")))
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<project>/src/loader.py", line 25, in parse_rows
+    raise ValueError(f"Ligne {line_number} invalide : {exc}") from exc
+ValueError: Ligne 2 invalide : Invalid isoformat string: 'date-invalide'

@@ -1,0 +1,6 @@
+CORRECTION : date ISO valide et 8 transactions conformes.
+
+2026-11-10 14:57:25,613 INFO 3 fichier(s) détecté(s) dans s3://transactions
+2026-11-10 14:57:25,637 INFO demo_failure_c088dfbfc181473fab6988311b3c8211.csv : inséré (8 transactions)
+2026-11-10 14:57:25,642 INFO transactions_001.csv : inséré (8 transactions)
+2026-11-10 14:57:25,648 INFO transactions_002.csv : inséré (8 transactions)
