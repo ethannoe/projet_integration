@@ -1,0 +1,32 @@
+name: data-pipeline-ci
+on:
+  push:
+  pull_request:
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -r requirements.txt
+      - name: Tests unitaires
+        run: python -m unittest tests.test_processing -v
+      - name: Démarrer PostgreSQL et RustFS
+        run: |
+          docker compose up -d postgres s3
+          until docker compose exec -T postgres pg_isready -U pipeline -d transactions && curl -fsS http://localhost:9000/health; do sleep 2; done
+      - name: Test d'intégration
+        env:
+          RUN_INTEGRATION: '1'
+          DATABASE_URL: postgresql://pipeline:pipeline-local-only@localhost:5432/transactions
+          S3_ENDPOINT: http://localhost:9000
+          S3_ACCESS_KEY: localaccesskey
+          S3_SECRET_KEY: localsecretkey123
+          S3_BUCKET: transactions
+          AWS_REGION: eu-west-3
+        run: python -m unittest tests.test_integration -v
+      - if: always()
+        run: docker compose down -v

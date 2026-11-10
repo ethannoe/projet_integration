@@ -1,0 +1,57 @@
+name: deploy-pipeline
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Authentification au registre GitHub
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Construire et publier l’image
+        run: |
+          IMAGE="ghcr.io/${GITHUB_REPOSITORY,,}:${GITHUB_SHA}"
+          docker build -t "$IMAGE" .
+          docker push "$IMAGE"
+          echo "IMAGE=$IMAGE" >> "$GITHUB_ENV"
+      - name: Configurer kubectl
+        env:
+          KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
+        run: |
+          test -n "$KUBE_CONFIG" || { echo "Le secret KUBE_CONFIG est requis"; exit 1; }
+          mkdir -p "$HOME/.kube"
+          printf '%s' "$KUBE_CONFIG" > "$HOME/.kube/config"
+          chmod 600 "$HOME/.kube/config"
+      - name: Créer les secrets applicatifs
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          S3_ENDPOINT: ${{ secrets.S3_ENDPOINT }}
+          S3_ACCESS_KEY: ${{ secrets.S3_ACCESS_KEY }}
+          S3_SECRET_KEY: ${{ secrets.S3_SECRET_KEY }}
+          S3_BUCKET: ${{ secrets.S3_BUCKET }}
+        run: |
+          for name in DATABASE_URL S3_ENDPOINT S3_ACCESS_KEY S3_SECRET_KEY S3_BUCKET; do
+            test -n "${!name}" || { echo "Le secret $name est requis"; exit 1; }
+          done
+          kubectl create secret generic transactions-pipeline-secrets \
+            --from-literal=DATABASE_URL="$DATABASE_URL" \
+            --from-literal=S3_ENDPOINT="$S3_ENDPOINT" \
+            --from-literal=S3_ACCESS_KEY="$S3_ACCESS_KEY" \
+            --from-literal=S3_SECRET_KEY="$S3_SECRET_KEY" \
+            --from-literal=S3_BUCKET="$S3_BUCKET" \
+            --dry-run=client -o yaml | kubectl apply -f -
+      - name: Déployer le CronJob
+        run: |
+          sed "s|IMAGE_PLACEHOLDER|$IMAGE|" deploy/cronjob.yaml | kubectl apply -f -
+          kubectl get cronjob transactions-pipeline

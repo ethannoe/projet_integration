@@ -1,0 +1,55 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-transactions}
+      POSTGRES_USER: ${POSTGRES_USER:-pipeline}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-pipeline-local-only}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  s3:
+    image: rustfs/rustfs:latest
+    command: ["/data"]
+    environment:
+      RUSTFS_ACCESS_KEY: ${S3_ACCESS_KEY:-localaccesskey}
+      RUSTFS_SECRET_KEY: ${S3_SECRET_KEY:-localsecretkey123}
+      RUSTFS_ADDRESS: ":9000"
+      RUSTFS_CONSOLE_ADDRESS: ":9001"
+      RUSTFS_CONSOLE_ENABLE: "true"
+      RUSTFS_OBS_LOGGER_LEVEL: "error"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - rustfs_data:/data
+
+  pipeline:
+    build: .
+    depends_on:
+      postgres:
+        condition: service_healthy
+      s3:
+        condition: service_started
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql://pipeline:pipeline-local-only@postgres:5432/transactions}
+      S3_ENDPOINT: ${S3_ENDPOINT:-http://s3:9000}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-localaccesskey}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:-localsecretkey123}
+      S3_BUCKET: ${S3_BUCKET:-transactions}
+      AWS_REGION: ${AWS_REGION:-eu-west-3}
+      RETRY_BASE_SECONDS: ${RETRY_BASE_SECONDS:-1}
+      MAX_RETRIES: ${MAX_RETRIES:-3}
+      SIMULATE_DB_FAILURES: ${SIMULATE_DB_FAILURES:-0}
+      SIMULATE_S3_FAILURES: ${SIMULATE_S3_FAILURES:-0}
+
+volumes:
+  postgres_data:
+  rustfs_data:

@@ -1,0 +1,22 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: transactions-pipeline
+spec:
+  schedule: "*/15 * * * *"
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 300
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: processor
+              image: IMAGE_PLACEHOLDER
+              imagePullPolicy: IfNotPresent
+              command: ["python", "-m", "src.pipeline"]
+              envFrom:
+                - secretRef:
+                    name: transactions-pipeline-secrets
