@@ -17,7 +17,7 @@ class ProcessingTests(unittest.TestCase):
         row = {"montant": 5000.01, "iban_origine": "A", "banque_source": "Bank", "iban_destinataire": "B"}
         flagged = add_large_amount_flag([row])
         self.assertTrue(flagged[0]["is_over_5000"])
-        self.assertNotIn("is_over_5000", row)  # entrée non modifiée
+        self.assertNotIn("is_over_5000", row)
         rows = [{"montant": 12, "iban_origine": "A", "banque_source": "Bank", "iban_destinataire": "B"},
                 {"montant": 8, "iban_origine": "A", "banque_source": "Bank", "iban_destinataire": "C"}]
         self.assertEqual(build_aggregates(rows)["origin_iban"], {"A": 20.0})

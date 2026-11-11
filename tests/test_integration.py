@@ -5,7 +5,7 @@ import uuid
 
 from src.database import connect, initialize, insert_with_retry
 from src.generator import generate_files
-from src.loader import load_local
+from src.loader import parse_rows
 from src.processing import add_large_amount_flag, build_aggregates
 from src.storage import client, ensure_bucket, download_with_retry, upload_files
 
@@ -21,8 +21,7 @@ class PipelineIntegrationTests(unittest.TestCase):
             key = f"integration-{uuid.uuid4().hex}.csv"
             s3.upload_file(str(path), bucket, key)
             content = download_with_retry(s3, bucket, key, 3, 0, simulated_failures=1)
-            rows = add_large_amount_flag(load_local(path))
-            # Le premier appel simule un échec transitoire puis réussit.
+            rows = add_large_amount_flag(parse_rows(content.decode("utf-8")))
             conn = connect()
             try:
                 initialize(conn)
@@ -39,12 +38,12 @@ class PipelineIntegrationTests(unittest.TestCase):
                 total = conn.execute("SELECT sum(montant) FROM transactions WHERE source_key=%s", (key,)).fetchone()[0]
                 self.assertEqual(float(total), sum(float(row["montant"]) for row in rows))
                 expected_aggregates = build_aggregates(rows)
-                db_types = {
-                    "origin_iban": ("iban_origine", "iban_origine"),
-                    "source_bank": ("banque_source", "banque_source"),
-                    "destination_iban": ("iban_destinataire", "iban_destinataire"),
+                aggregate_columns = {
+                    "origin_iban": "iban_origine",
+                    "source_bank": "banque_source",
+                    "destination_iban": "iban_destinataire",
                 }
-                for aggregate_type, (source_field, column_name) in db_types.items():
+                for aggregate_type, column_name in aggregate_columns.items():
                     for aggregate_key, expected_amount in expected_aggregates[aggregate_type].items():
                         saved = conn.execute(
                             "SELECT total_amount FROM aggregates WHERE aggregate_type=%s AND aggregate_key=%s",

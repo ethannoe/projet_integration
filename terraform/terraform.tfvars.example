@@ -3,4 +3,3 @@ project_name = "transactions-pipeline-example"
 vpc_id = "vpc-xxxxxxxx"
 private_subnet_ids = ["subnet-aaaa", "subnet-bbbb"]
 allowed_cidr = "10.0.0.0/16"
-# Fournir db_username et db_password via variables d'environnement TF_VAR_*.
